@@ -358,18 +358,22 @@ static int handle_conflict(struct strbuf *out, struct rerere_io *io,
 		RR_SIDE_1 = 0, RR_SIDE_2, RR_ORIGINAL
 	} hunk = RR_SIDE_1;
 	struct strbuf one = STRBUF_INIT, two = STRBUF_INIT;
-	struct strbuf buf = STRBUF_INIT, conflict = STRBUF_INIT;
+	struct strbuf buf = STRBUF_INIT;
 	int has_conflicts = -1;
 
 	while (!io->getline(&buf, io)) {
 		if (is_cmarker(buf.buf, '<', marker_size)) {
+			struct strbuf conflict = STRBUF_INIT;
+			int break_me = 0;
 			if (handle_conflict(&conflict, io, marker_size, NULL) < 0)
-				break;
-			if (hunk == RR_SIDE_1)
+				break_me = 1;
+			else if (hunk == RR_SIDE_1)
 				strbuf_addbuf(&one, &conflict);
 			else
 				strbuf_addbuf(&two, &conflict);
 			strbuf_release(&conflict);
+			if (break_me)
+				break;
 		} else if (is_cmarker(buf.buf, '|', marker_size)) {
 			if (hunk != RR_SIDE_1)
 				break;
@@ -394,12 +398,13 @@ static int handle_conflict(struct strbuf *out, struct rerere_io *io,
 				the_hash_algo->update_fn(ctx, two.buf, two.len + 1);
 			}
 			break;
-		} else if (hunk == RR_SIDE_1)
+		} else if (hunk == RR_SIDE_1) {
 			strbuf_addbuf(&one, &buf);
-		else if (hunk == RR_ORIGINAL)
+		} else if (hunk == RR_ORIGINAL) {
 			; /* discard */
-		else if (hunk == RR_SIDE_2)
+		} else if (hunk == RR_SIDE_2) {
 			strbuf_addbuf(&two, &buf);
+		}
 	}
 	strbuf_release(&one);
 	strbuf_release(&two);
